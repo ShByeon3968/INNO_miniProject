@@ -2,6 +2,7 @@ import socket
 import tkinter as tk
 
 def send_message():
+    global M_s , M_u, K_s,K_t,C, sampling_time,total_time
     M_s = entry_M_s.get()
     M_u = entry_M_u.get()
     K_s = entry_K_s.get()

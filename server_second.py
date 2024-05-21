@@ -27,7 +27,9 @@ def handle_client(client_socket):
 
 def display_message(message):
     global text_widget
-    text_widget.insert(tk.END, message + '\n')
+    variables = message.split(',')
+    formatted_message = "\n".join(variables)
+    text_widget.insert(tk.END, formatted_message + '\n')
 
 def run_gui():
     global text_widget
