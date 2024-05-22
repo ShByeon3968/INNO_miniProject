@@ -1,4 +1,4 @@
-('C:\\bsh\\Python\\Network\\build\\client\\PYZ-00.pyz',
+('C:\\bsh\\Python\\INNO_miniProject\\build\\client\\PYZ-00.pyz',
  [('_compat_pickle',
    'C:\\Users\\user\\anaconda3\\envs\\open3d\\lib\\_compat_pickle.py',
    'PYMODULE'),
