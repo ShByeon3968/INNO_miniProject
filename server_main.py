@@ -1,11 +1,40 @@
 import socket
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.integrate import odeint
+import csv
+
+class CarSimulationApp:
+    def __init__(self, root, t, distance_A, distance_B, sampling_time):
+        self.root = root
+        self.t = t
+        self.distance_A = distance_A
+        self.distance_B = distance_B
+        self.sampling_time = sampling_time
+        
+        self.canvas = tk.Canvas(root, width=1300, height=200, bg='white')
+        self.canvas.pack(pady=10)
+
+        self.car_A = self.canvas.create_rectangle(50, 50, 100, 100, fill='blue', outline='blue', tags="car_A")
+        self.car_B = self.canvas.create_rectangle(700, 50, 750, 100, fill='red', outline='red', tags="car_B")
+        
+        self.frame_idx = 0
+        self.update_simulation()
+        
+    def update_simulation(self):
+        if self.frame_idx < len(self.t):
+            new_x_A = 50 + (self.distance_A[self.frame_idx] * 700)
+            new_x_B = 750 - (self.distance_A[self.frame_idx] * 700)
+            
+            self.canvas.coords(self.car_A, new_x_A, 50, new_x_A + 50, 100)
+            self.canvas.coords(self.car_B, new_x_B, 50, new_x_B + 50, 100)
+            
+            self.frame_idx += 1
+            self.root.after(int(self.sampling_time * 1000), self.update_simulation)
 
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,7 +60,7 @@ def handle_client(client_socket):
     client_socket.close()
 
 def process_message(message):
-    global text_widget, plot_button, var_dict
+    global text_widget, plot_button, save_button, var_dict
 
     variables = message.split(',')
     var_dict = {}
@@ -52,9 +81,10 @@ def process_message(message):
     
     text_widget.insert(tk.END, formatted_message + '\n')
     plot_button.config(state=tk.NORMAL)
+    save_button.config(state=tk.NORMAL)
 
 def run_simulation():
-    global var_dict, canvas, figure
+    global var_dict, canvas, figure, x_s, x_u, x_r, t, v_s, distance_A, distance_B
     
     M_s = var_dict['M_s']
     M_u = var_dict['M_u']
@@ -80,8 +110,12 @@ def run_simulation():
     solution = odeint(quarter_car_model, initial_conditions, t, args=(M_s, M_u, K_s, K_t, C))
 
     x_s = solution[:, 0]
+    v_s = solution[:, 1]
     x_u = solution[:, 2]
     x_r = road_input(t)
+
+    distance_A = np.cumsum(v_s) * sampling_time
+    distance_B = 1.0 - distance_A
 
     figure.clear()
     
@@ -108,9 +142,36 @@ def run_simulation():
     ax3.grid()
 
     canvas.draw()
+    
+    # Car simulation in GUI
+    CarSimulationApp(root, t, distance_A, distance_B, sampling_time)
+
+
+
+def save_csv():
+    global x_s, x_u, x_r, t, var_dict
+    filepath = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+    if not filepath:
+        return
+
+    data = {'Time (s)': t}
+    
+    if var_dict['x_s']:
+        data['Sprung Mass Displacement (x_s)'] = x_s
+    if var_dict['x_u']:
+        data['Unsprung Mass Displacement (x_u)'] = x_u
+    if var_dict['x_r']:
+        data['Road Input (x_r)'] = x_r
+
+    with open(filepath, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=data.keys())
+        writer.writeheader()
+        for i in range(len(t)):
+            row = {key: data[key][i] for key in data}
+            writer.writerow(row)
 
 def run_gui():
-    global text_widget, plot_button, var_dict, canvas, figure
+    global text_widget, plot_button, save_button, var_dict, canvas, figure, t, distance_A, distance_B, sampling_time, root
 
     root = tk.Tk()
     root.title("서버")
@@ -118,6 +179,9 @@ def run_gui():
     figure = plt.Figure(figsize=(15, 5), dpi=100)
     canvas = FigureCanvasTkAgg(figure, root)
     canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    simulation_frame = tk.Frame(root)
+    simulation_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
     text_frame = tk.Frame(root)
     text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -131,7 +195,19 @@ def run_gui():
     scroll_bar.config(command=text_widget.yview)
     
     plot_button = tk.Button(root, text="시뮬레이션 실행 및 그래프 표시", command=run_simulation, state=tk.DISABLED)
-    plot_button.pack(pady=10)
+    plot_button.pack(pady=5)
+
+    save_button = tk.Button(root, text="결과를 CSV로 저장", command=save_csv, state=tk.DISABLED)
+    save_button.pack(pady=5)
+
+    var_dict = {'x_s': tk.BooleanVar(value=True), 'x_u': tk.BooleanVar(value=True), 'x_r': tk.BooleanVar(value=True)}
+    
+    check_frame = tk.Frame(root)
+    check_frame.pack(pady=5)
+
+    tk.Checkbutton(check_frame, text="Sprung Mass Displacement (x_s)", variable=var_dict['x_s']).pack(side=tk.LEFT)
+    tk.Checkbutton(check_frame, text="Unsprung Mass Displacement (x_u)", variable=var_dict['x_u']).pack(side=tk.LEFT)
+    tk.Checkbutton(check_frame, text="Road Input (x_r)", variable=var_dict['x_r']).pack(side=tk.LEFT)
 
     threading.Thread(target=start_server, daemon=True).start()
     root.mainloop()
