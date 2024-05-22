@@ -1,5 +1,5 @@
 # INNO_miniProject
-## 이노시뮬레이션
+## Vehicle Motion 
 -----
 ### 구현 기능
 1. UI 변수입력
