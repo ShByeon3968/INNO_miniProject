@@ -1,0 +1,29 @@
+function [sys, x0] = qcar(t,x,t,flag)
+%% 1/4 car model
+%%
+ms = 363.5; mu=37.6
+ks=1.03e4;cs=1000.0;kt=1.8e5;
+g=0.0;
+
+%%compute road height, zr .
+    speed=27.78; bumpstart=5.0; period =10.0;amp=0.05;
+    t1 = bumpstart/speed; t2 = t1+period/speed;
+    if t<=t1, zr=0;
+    else if t>t1 & t<=t2, zr=-amp*sin((pi*speed/period)*(t-t1));
+    elseif t>t2,zr=0;
+    end
+if flat=1,
+    sys(1) = x(2);
+    sys(2) = (-ks(1)*(x(1)-x(3))-cs*(x(2)-x(4))+u)/ms+g;
+    sys(3) = x(4);
+    sys(4) = (ks*(x(1)-x(3))+cs*(x(2)-x(4))-kt*(x(3)-zr)-u)/mu+g;
+elseif flag == 3;
+    sys = x;
+    sys(5) = (-ks(1)*(x(1)-x(3))-cs*(x(2)-x(4))+u)/ms+g;
+    sys(6) = (ks*(x(1)-x(3))+cs*(x(2)-x(4))-kt*(x(3)-zr)-u)/mu+g;
+elseif flag == 0;
+    sys = [4;0;6;1;0;0];
+    x0 = [0 0 0 0]';
+else
+    sys = [];
+end
