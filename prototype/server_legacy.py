@@ -97,7 +97,7 @@ def run_simulation():
     t = np.arange(0, total_time, sampling_time)
 
     def road_input(t):
-        return 0.1 * np.sin(2 * np.pi * 0.5 * t)
+        return 0.01 * np.sin(2 * np.pi * 1 * t)
 
     def quarter_car_model(y, t, M_s, M_u, K_s, K_t, C):
         x_s, v_s, x_u, v_u = y

@@ -15,24 +15,56 @@ class CarSimulationApp:
         self.distance_A = distance_A
         self.distance_B = distance_B
         self.sampling_time = sampling_time
-        
-        self.canvas = tk.Canvas(root, width=1300, height=200, bg='white')
+
+        screen_height = self.root.winfo_screenheight()
+        self.canvas = tk.Canvas(root, width=800, height=screen_height // 3, bg='white')
         self.canvas.pack(pady=10)
 
         self.car_A = self.canvas.create_rectangle(50, 50, 100, 100, fill='blue', outline='blue', tags="car_A")
-        self.car_B = self.canvas.create_rectangle(50, 50, 750, 100, fill='red', outline='red', tags="car_B")
-        
+        self.car_B = self.canvas.create_rectangle(50, screen_height // 3 - 100, 100, screen_height // 3 - 50, fill='red', outline='red', tags="car_B")
+
+        # Entry fields for x position
+        self.x_start_A = tk.DoubleVar(value=0.0)
+        self.x_end_A = tk.DoubleVar(value=1.0)
+        self.x_start_B = tk.DoubleVar(value=0.0)
+        self.x_end_B = tk.DoubleVar(value=1.0)
+
+        tk.Label(root, text="Car A Start X").pack(side=tk.LEFT)
+        self.entry_x_start_A = tk.Entry(root, textvariable=self.x_start_A)
+        self.entry_x_start_A.pack(side=tk.LEFT)
+
+        tk.Label(root, text="Car A End X").pack(side=tk.LEFT)
+        self.entry_x_end_A = tk.Entry(root, textvariable=self.x_end_A)
+        self.entry_x_end_A.pack(side=tk.LEFT)
+
+        tk.Label(root, text="Car B Start X").pack(side=tk.LEFT)
+        self.entry_x_start_B = tk.Entry(root, textvariable=self.x_start_B)
+        self.entry_x_start_B.pack(side=tk.LEFT)
+
+        tk.Label(root, text="Car B End X").pack(side=tk.LEFT)
+        self.entry_x_end_B = tk.Entry(root, textvariable=self.x_end_B)
+        self.entry_x_end_B.pack(side=tk.LEFT)
+
         self.frame_idx = 0
         self.update_simulation()
-        
+
     def update_simulation(self):
         if self.frame_idx < len(self.t):
-            new_x_A = 0 + (self.distance_A[self.frame_idx] * 700)
-            new_x_B = 1300 - (self.distance_A[self.frame_idx] * 700)
+            screen_height = self.root.winfo_screenheight()
+
+            # Update the car positions based on the y-displacement and x-range
+            y_A = 50 + (self.distance_A[self.frame_idx] * (screen_height // 3 - 100))
+            y_B = (screen_height // 3 - 100) - (self.distance_A[self.frame_idx] * (screen_height // 3 - 100))
+
+            x_range_A = self.x_end_A.get() - self.x_start_A.get()
+            x_A = 50 + (self.x_start_A.get() * 700) + (self.distance_A[self.frame_idx] * x_range_A * 700)
             
-            self.canvas.coords(self.car_A, new_x_A, 50, new_x_A + 50, 100)
-            self.canvas.coords(self.car_B, new_x_B, 50, new_x_B + 50, 100)
-            
+            x_range_B = self.x_end_B.get() - self.x_start_B.get()
+            x_B = 50 + (self.x_start_B.get() * 700) + (self.distance_A[self.frame_idx] * x_range_B * 700)
+
+            self.canvas.coords(self.car_A, x_A, y_A, x_A + 50, y_A + 50)
+            self.canvas.coords(self.car_B, x_B, y_B, x_B + 50, y_B + 50)
+
             self.frame_idx += 1
             self.root.after(int(self.sampling_time * 1000), self.update_simulation)
 
@@ -147,7 +179,6 @@ def run_simulation():
     CarSimulationApp(root, t, distance_A, distance_B, sampling_time)
 
 
-
 def save_csv():
     global x_s, x_u, x_r, t, var_dict
     filepath = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
@@ -156,11 +187,11 @@ def save_csv():
 
     data = {'Time (s)': t}
     
-    if x_s:
+    if var_dict['x_s']:
         data['Sprung Mass Displacement (x_s)'] = x_s
-    if x_u:
+    if var_dict['x_u']:
         data['Unsprung Mass Displacement (x_u)'] = x_u
-    if x_r:
+    if var_dict['x_r']:
         data['Road Input (x_r)'] = x_r
 
     with open(filepath, mode='w', newline='') as file:
@@ -171,39 +202,33 @@ def save_csv():
             writer.writerow(row)
 
 def run_gui():
-    global text_widget, plot_button, save_button, var_dict, canvas, figure, t, distance_A, distance_B, sampling_time, root
+    global text_widget, plot_button, save_button, var_dict, canvas, figure, root
 
     root = tk.Tk()
-    root.title("서버")
-    
-    figure = plt.Figure(figsize=(15, 5), dpi=100)
+    root.title("서버 프로그램")
+    root.geometry("1200x800")
+
+    text_widget = tk.Text(root, height=10)
+    text_widget.pack()
+
+    plot_button = tk.Button(root, text="그래프 생성", command=run_simulation, state=tk.DISABLED)
+    plot_button.pack()
+
+    save_button = tk.Button(root, text="CSV 저장", command=save_csv, state=tk.DISABLED)
+    save_button.pack()
+
+    figure = plt.Figure(figsize=(10, 6), dpi=100)
     canvas = FigureCanvasTkAgg(figure, root)
-    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    canvas.get_tk_widget().pack()
 
-    simulation_frame = tk.Frame(root)
-    simulation_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-    text_frame = tk.Frame(root)
-    text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-    text_widget = tk.Text(text_frame, height=10)
-    text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-    scroll_bar = tk.Scrollbar(text_frame)
-    scroll_bar.pack(side=tk.RIGHT, fill=tk.Y)
-    text_widget.config(yscrollcommand=scroll_bar.set)
-    scroll_bar.config(command=text_widget.yview)
-    
-    plot_button = tk.Button(root, text="시뮬레이션 실행 및 그래프 표시", command=run_simulation, state=tk.DISABLED)
-    plot_button.pack(pady=5)
-
-    save_button = tk.Button(root, text="결과를 CSV로 저장", command=save_csv, state=tk.DISABLED)
-    save_button.pack(pady=5)
-
-    var_dict = {'x_s': tk.BooleanVar(value=True), 'x_u': tk.BooleanVar(value=True), 'x_r': tk.BooleanVar(value=True)}
-    
     check_frame = tk.Frame(root)
-    check_frame.pack(pady=5)
+    check_frame.pack(pady=10)
+
+    var_dict = {
+        'x_s': tk.BooleanVar(),
+        'x_u': tk.BooleanVar(),
+        'x_r': tk.BooleanVar()
+    }
 
     tk.Checkbutton(check_frame, text="Sprung Mass Displacement (x_s)", variable=var_dict['x_s']).pack(side=tk.LEFT)
     tk.Checkbutton(check_frame, text="Unsprung Mass Displacement (x_u)", variable=var_dict['x_u']).pack(side=tk.LEFT)
